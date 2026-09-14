@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the GeHirNet paper."
+title: "GeHirNet: A Sex-Aware Hierarchical Model for Fair and Accurate Voice Pathology Classification"
+type: software
+version: 0.1.0
+authors:
+  - family-names: Wu
+    given-names: Fan
+  - family-names: Zhao
+    given-names: Kaicheng
+  - family-names: Fleisch
+    given-names: Elgar
+  - family-names: Barata
+    given-names: Filipe
+license: Apache-2.0

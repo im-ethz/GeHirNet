@@ -1,0 +1,2 @@
+Audio_Path,Dataset,ID,Participant_ID,Sex,Pathology,Group
+example/vowel.wav,example_source,example_recording,example_participant,M,HC,MC

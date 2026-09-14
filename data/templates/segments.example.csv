@@ -1,0 +1,2 @@
+Full_Path,Dataset,ID,Participant_ID,Sex,Pathology,Group,augmentation_method
+MC/example_segment.npy,example_source,example_recording,example_participant,M,HC,MC,original

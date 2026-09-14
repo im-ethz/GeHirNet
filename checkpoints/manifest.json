@@ -1,0 +1,24 @@
+{
+  "checkpoints": [
+    {
+      "filename": "pd/final_group_classifier.pth",
+      "role": "pd",
+      "classes": [
+        "MC",
+        "MP",
+        "FC",
+        "FP"
+      ],
+      "bytes": 94367534,
+      "sha256": "e6121614600c1394b03c80cdb2b9bc7bad24f72a432786df7455e65b0331abd8",
+      "experiment": null,
+      "seed": null,
+      "release_url": null,
+      "note": "Local checkpoint only; training provenance and redistribution terms are not established."
+    }
+  ],
+  "missing_roles": [
+    "mp",
+    "fp"
+  ]
+}

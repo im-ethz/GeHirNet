@@ -1,0 +1,24 @@
+{
+  "task": "fp",
+  "table": "data/metadata/train_set.csv",
+  "data_root": "data/features/original",
+  "output_dir": "outputs/fp/seed42",
+  "seed": 42,
+  "device": "cpu",
+  "pretrained": true,
+  "folds": 5,
+  "epochs": [
+    10,
+    20,
+    30
+  ],
+  "batch_sizes": [
+    32,
+    64
+  ],
+  "learning_rates": [
+    0.001,
+    0.0001,
+    1e-05
+  ]
+}

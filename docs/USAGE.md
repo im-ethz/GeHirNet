@@ -1,93 +1,132 @@
-# Use a pretrained model
+# Using the pretrained GeHirNet model
 
-Using a model does not require downloading the training datasets or running training. It requires the source package, a suitable input and a separately obtained model artifact.
+The released hierarchical model is a directory, not one combined state dict:
 
-## Install
+```text
+checkpoints/hierarchical/
+  manifest.json
+  README.md
+  LICENSE.txt
+  pd.pth   # 4 outputs: MC, MP, FC, FP
+  mp.pth   # 6 male-pathology outputs
+  fp.pth   # 6 female-pathology outputs
+```
 
-Clone the actual public repository once it is published, enter its directory, then use Python 3.12 (the locally validated version):
+`pd.pth`, `mp.pth`, and `fp.pth` are all required for seven-class inference. The manifest records their label order, preprocessing contract, SHA-256 checksums, and Apache-2.0 weight license.
+
+## Installation
+
+From the repository root:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-gehirnet --help
 ```
 
-The package constrains PyTorch/torchvision/torchaudio to the 2.6/0.21/2.6 family. CPU is the default. GPU installations must provide a matching PyTorch build for their system.
+Use `--device cuda` when a compatible CUDA build is installed. CPU is the default.
 
-## Obtain weights
+## Recommended CLI call
 
-The source repository intentionally excludes `.pth` files. The author must supply a real model download location and weight terms in the release documentation. No public download is available in this initial local preparation.
-
-A downloadable artifact has one of these layouts:
-
-```text
-pd-only/                  complete-hierarchy/
-  manifest.json             manifest.json
-  README.md                 README.md
-  pd.pth                    pd.pth
-                            mp.pth
-                            fp.pth
-```
-
-The artifact type is declared by the manifest. PD alone outputs `HC`/`Pathology` plus the predicted group; complete hierarchy outputs HC or one of six diseases. A missing MP/FP pair cannot provide the complete model.
-
-## Run inference
-
-After extracting the artifact:
+For a raw recording:
 
 ```bash
-gehirnet predict path/to/vowel.wav --model-dir path/to/extracted-artifact --output outputs/prediction.json
+gehirnet predict path/to/vowel.wav \
+  --model-dir checkpoints/hierarchical \
+  --output outputs/prediction.json
 ```
 
-Input requirements:
+For a prepared Mel feature:
 
-- Mono sustained vowel `/a/`, not unrestricted speech.
-- WAV sample rate 44100 Hz, or 40000–50000 Hz in 125 Hz steps, including 48000 and 50000 Hz.
-- For an already VAD-filtered and normalized recording, add `--already-preprocessed` to avoid applying those operations again. Slicing into one-second segments still occurs.
-- Alternatively, supply a finite log-Mel `.npy` of shape `(1,128,98)` or `(128,98)`. No audio preprocessing is applied to `.npy` inputs.
-
-The loader verifies manifest format, label order, preprocessing and weight checksums before strict checkpoint loading. It does not validate author-supplied experiment provenance.
-
-PD-only JSON structure:
-
-```json
-{
-  "input": "path/to/vowel.wav",
-  "mode": "pd",
-  "segments": [{"group": "MC", "label": "HC"}]
-}
+```bash
+gehirnet predict path/to/segment.npy \
+  --model-dir checkpoints/hierarchical
 ```
 
-This example explains the output schema; it is not a prediction guaranteed for arbitrary audio. Full hierarchy uses `mode: hierarchical` and disease labels. The model infers the routing group from audio; no sex metadata is supplied at inference. Multiple segments remain separate results. No calibrated disease probability or participant-level diagnosis is returned.
+The model directory is preferred because the loader checks the manifest and all three file checksums before strict state-dict loading.
+
+## Calling the `.pth` files directly
+
+```bash
+gehirnet predict path/to/vowel.wav \
+  --pd checkpoints/hierarchical/pd.pth \
+  --mp checkpoints/hierarchical/mp.pth \
+  --fp checkpoints/hierarchical/fp.pth \
+  --output outputs/prediction.json
+```
+
+Do not pass only `mp.pth` or `fp.pth`: the first-stage PD prediction selects which second-stage model runs. Do not exchange these roles because their output dimensions or learned populations differ.
 
 ## Python API
+
+Recommended manifest-based loading:
 
 ```python
 from gehirnet.bundle import load_bundle
 from gehirnet.preprocessing import load_input
 
-model, metadata = load_bundle("path/to/extracted-artifact", device="cpu")
-predictions = model.predict(load_input("path/to/vowel.wav"))
+model, metadata = load_bundle("checkpoints/hierarchical", device="cpu")
+mels = load_input("path/to/vowel.wav")
+predictions = model.predict(mels)
 print(predictions)
 ```
 
-Individual checkpoint arguments remain supported for author/research use:
+Direct checkpoint loading:
 
-```bash
-gehirnet predict path/to/sample.npy --pd checkpoints/pd/final_group_classifier.pth
-gehirnet predict path/to/sample.npy --pd pd.pth --mp mp.pth --fp fp.pth
-gehirnet predict path/to/sample.npy --baseline baseline.pth
+```python
+from gehirnet.inference import GeHirNet
+from gehirnet.preprocessing import load_input
+
+model = GeHirNet(
+    pd_checkpoint="checkpoints/hierarchical/pd.pth",
+    mp_checkpoint="checkpoints/hierarchical/mp.pth",
+    fp_checkpoint="checkpoints/hierarchical/fp.pth",
+    device="cpu",
+)
+predictions = model.predict(load_input("path/to/segment.npy"))
 ```
 
-Use `--device cuda` and optionally `--batch-size` for GPU inference. Predictions are research outputs; the model card describes the evaluated population and limitations.
+## Inputs
 
-## Evaluate your labeled cohort
+Raw audio must be a mono sustained vowel `/a/` WAV. Supported sample rates are 44100 Hz or values from 40000 through 50000 Hz in 125 Hz steps. The default pipeline applies RMS silence removal, fade/crossfade, min-max normalization, one-second segmentation with a 0.4-second step, wrap padding, and log-Mel conversion.
 
-Create a segment CSV following [the data schema](../data/README.md):
+Use `--already-preprocessed` only when VAD and min-max normalization were already applied to the entire recording. Segmentation and Mel extraction still run.
 
-```bash
-gehirnet evaluate --table path/to/test.csv --data-root path/to/features --model-dir path/to/artifact --output outputs/metrics.json
+A `.npy` input must contain finite log-Mel values with shape `(1, 128, 98)` or `(128, 98)`.
+
+## Outputs
+
+The final class order is:
+
+```text
+ALS, Covid-19, Dysphonie, Laryngitis, Parkinson, Rekurrensparese, HC
 ```
 
-This reports metrics at the segment level. Accuracy/MCC from a PD artifact are binary metrics and cannot be compared directly with the paper's seven-class Table II metrics.
+Example schema:
+
+```json
+{
+  "input": "path/to/vowel.wav",
+  "mode": "hierarchical",
+  "segments": [
+    {"group": "MC", "label": "HC"},
+    {"group": "FP", "label": "Dysphonie"}
+  ]
+}
+```
+
+Predictions are returned per one-second segment. The repository does not impose a whole-recording voting rule or return calibrated clinical probabilities.
+
+## Evaluate a labeled feature set
+
+The CSV requires at least `Full_Path`, `Pathology`, and `Group`. Paths resolve relative to `--data-root`.
+
+```bash
+gehirnet evaluate \
+  --table data/metadata/test_set.csv \
+  --data-root data/features/original \
+  --model-dir checkpoints/hierarchical \
+  --output outputs/hierarchical_metrics.json
+```
+
+The output includes segment-level accuracy, weighted F1, MCC, confusion matrix, and predictions. The model is intended for research use on sustained vowels; see `MODEL_CARD.md` for limitations.

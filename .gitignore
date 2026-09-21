@@ -15,6 +15,8 @@ outputs/
 *.ckpt
 *.safetensors
 *.onnx
+# Publish only the validated final hierarchical weights through Git LFS.
+!checkpoints/hierarchical/*.pth
 data/raw/
 data/metadata/
 data/features/

@@ -72,6 +72,9 @@ def create_bundle(output_dir, checkpoints, experiment, seed=None, weight_license
         shutil.copyfile(path, destination)
         if checksum(destination) != artifacts[role]["sha256"]:
             raise ValueError(f"Checkpoint changed while copying: {role}")
+    project_license = Path(__file__).resolve().parents[2] / "LICENSE.txt"
+    if project_license.is_file():
+        shutil.copyfile(project_license, output / "LICENSE.txt")
     manifest = {
         "format_version": 1, "architecture": "single-channel ResNet-50", "mode": mode,
         "experiment": experiment, "seed": seed, "weight_license": weight_license,
@@ -85,8 +88,8 @@ def create_bundle(output_dir, checkpoints, experiment, seed=None, weight_license
         "Install the GeHirNet source package, then run:\n\n"
         "```bash\ngehirnet predict path/to/vowel.wav --model-dir path/to/this-directory\n```\n\n"
         "See manifest.json for class order, preprocessing and checkpoint checksums. "
-        "An UNSPECIFIED weight license is unresolved release metadata, not permission to redistribute. "
-        "This artifact does not establish agreement with published metrics or clinical validity.\n"
+        + ("An UNSPECIFIED weight license is unresolved release metadata, not permission to redistribute. " if weight_license == "UNSPECIFIED" else "")
+        + "This artifact does not establish agreement with published metrics or clinical validity.\n"
     )
     return manifest
 

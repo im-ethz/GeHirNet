@@ -112,7 +112,13 @@ def main():
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(payload + "\n")
-        print(payload)
+            summary = {"output": str(args.output), "mode": mode, "samples": len(result.get("segments", result.get("predictions", [])))}
+            for metric in ("accuracy", "weighted_f1", "mcc"):
+                if metric in result:
+                    summary[metric] = result[metric]
+            print(json.dumps(summary, indent=2, allow_nan=False))
+        else:
+            print(payload)
     except (ValueError, FileNotFoundError) as error:
         parser.error(str(error))
 

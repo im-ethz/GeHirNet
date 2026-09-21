@@ -1,0 +1,87 @@
+{
+  "format_version": 1,
+  "architecture": "single-channel ResNet-50",
+  "mode": "hierarchical",
+  "experiment": "hierarchical-final",
+  "seed": null,
+  "weight_license": "Apache-2.0",
+  "classes": [
+    "ALS",
+    "Covid-19",
+    "Dysphonie",
+    "Laryngitis",
+    "Parkinson",
+    "Rekurrensparese",
+    "HC"
+  ],
+  "preprocessing": {
+    "input": "mono sustained vowel /a/",
+    "mel_shape": [
+      1,
+      128,
+      98
+    ],
+    "vad": {
+      "window": 2048,
+      "hop": 512,
+      "threshold": 0.001,
+      "fade_and_crossfade": 512
+    },
+    "normalization": "min-max [0, 1] after VAD, before segmentation",
+    "segment_seconds": 1.0,
+    "step_seconds": 0.4,
+    "tail_padding": "wrap",
+    "mel": {
+      "bins": 128,
+      "scale": "power dB",
+      "44100_fft_hop": [
+        1808,
+        452
+      ],
+      "dynamic_base_rate_fft_hop": [
+        45000,
+        1848,
+        462
+      ]
+    },
+    "other_sample_rates": "40000 to 50000 Hz in 125 Hz steps",
+    "routing": "PD argmax, then MP/FP argmax on the same Mel input",
+    "aggregation": "none; predictions are per segment"
+  },
+  "checkpoints": {
+    "pd": {
+      "file": "pd.pth",
+      "classes": [
+        "MC",
+        "MP",
+        "FC",
+        "FP"
+      ],
+      "sha256": "e6121614600c1394b03c80cdb2b9bc7bad24f72a432786df7455e65b0331abd8"
+    },
+    "mp": {
+      "file": "mp.pth",
+      "classes": [
+        "ALS",
+        "Covid-19",
+        "Dysphonie",
+        "Laryngitis",
+        "Parkinson",
+        "Rekurrensparese"
+      ],
+      "sha256": "066913dd72ddaf1f90c46d683b0ec5b618efbce860b4dbeab62c6ddb0b8afd7a"
+    },
+    "fp": {
+      "file": "fp.pth",
+      "classes": [
+        "ALS",
+        "Covid-19",
+        "Dysphonie",
+        "Laryngitis",
+        "Parkinson",
+        "Rekurrensparese"
+      ],
+      "sha256": "ef270b10c6c4d7b457f258ae7a9044bd344f923141575e570d07ed1257ff9212"
+    }
+  }
+}

@@ -1,65 +1,89 @@
-# Reproduce experiments
+# Reproducing the GeHirNet workflow
 
-There are three different objectives: verify released checkpoints on the original test split; retrain using the paper's method; reproduce all published means/standard deviations and analyses exactly. Only the first-stage binary checkpoint verification is currently complete. The method's training entry point is usable once features are supplied; exact paper reproduction has unresolved artifacts/implementation details recorded below.
+This guide separates checkpoint verification from full retraining. The supplied test features and complete hierarchical weights support evaluation now. Full training requires the missing original training features or regenerated features from the source recordings.
 
-## 1. Install and identify artifacts
+## 1. Install and verify the environment
 
-Install with `python -m pip install -e .`; use `.[analysis]` for historical notebook analysis dependencies. Record the environment, source revision, checkpoint checksum and experiment/seed metadata.
-
-Required historical artifacts are the original train/test tables, the corresponding features, and matched PD/MP/FP weights for each hierarchy run; baseline runs need their baseline weights. `checkpoints/manifest.json` currently inventories PD only, without established experiment/seed provenance.
-
-## 2. Check the original data split
+Python 3.12 is locally validated. The paper used PyTorch 2.6.0, CUDA 12.4, and an NVIDIA L4.
 
 ```bash
-gehirnet audit --train-table data/metadata/train_set.csv --test-table data/metadata/test_set.csv --data-root data/features/original
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[analysis]'
+python -m unittest discover -s tests -v
 ```
 
-The current workspace reports 10,807 training and 2,702 testing segments; test files exist but training files do not resolve at the configured feature root. There are 1,454 overlapping `(Dataset, ID)` keys. Determine source-specific participant IDs before calling an evaluation speaker-independent.
+## 2. Understand the model tasks
 
-To compare the historical result, preserve its original split and labels. If you create a participant-disjoint split, label that as a new protocol and run participant-grouped CV using a separately implemented splitter; the extracted trainer still uses segment-stratified CV.
-
-## 3. Prepare features, if original features are unavailable
-
-Obtain the four source datasets according to their access terms and construct a recording list using `data/templates/recordings.example.csv`. Resolve the paper's exact inclusion/exclusion list before claiming the resulting dataset is identical. The current helper supports a new curated recording list:
-
-```bash
-gehirnet prepare --table data/metadata/train_recordings.csv --audio-root data/raw --output-root data/features/train
-gehirnet prepare --table data/metadata/test_recordings.csv --audio-root data/raw --output-root data/features/test
-```
-
-Each output contains `.npy` files and `segments.csv`. Configure training `table` as `data/features/train/segments.csv`, `data_root` as `data/features/train`, and evaluation accordingly for test. Extra identity metadata is preserved. Failed preparation leaves a partial table rather than a completed CSV; fix the input and choose a new output directory.
-
-The helper cannot recover the exact original segment split from a raw recording list. Generated filenames, manual exclusions and audio round-trip quantization differ from historical artifacts. Use original `.npy` features and canonical split lists for the strongest checkpoint comparison.
-
-## 4. Generate the experiment configs
-
-For original nonaugmented features at the original feature-relative paths:
-
-```bash
-python scripts/make_configs.py --experiment baseline --table data/metadata/train_set.csv --data-root data/features/original --config-dir outputs/configs/baseline --device cuda
-python scripts/make_configs.py --experiment hierarchical --table data/metadata/train_set.csv --data-root data/features/original --config-dir outputs/configs/hierarchical --device cuda
-```
-
-This creates three baseline configs and nine hierarchy configs: PD/MP/FP for seeds 40, 41, 42. It does not launch training. For prepared features, replace table/root arguments with the values in step 3.
-
-The four paper experiments map to:
-
-| Paper | Config experiment | Tasks/data |
+| Task | Classes | Model file |
 | --- | --- | --- |
-| Exp 1 | `baseline` | Baseline on original training features |
-| Exp 2 | `hierarchical` | PD, MP, FP on original training features |
-| Exp 3.1 | `resampling` | PD, MP, FP on their separately balanced resampled training tables |
-| Exp 3.2 | `timewarp` | PD, MP, FP on their separately balanced time-warped training tables |
+| PD | `MC, MP, FC, FP` | `pd.pth` |
+| MP | six diseases, male pathology | `mp.pth` |
+| FP | six diseases, female pathology | `fp.pth` |
+| Baseline | HC plus six diseases | separately trained seven-class checkpoint |
 
-For augmentation, first use the archived balancing workflows or `augmentation.py` primitives on **training audio only**. Balance PD at the sex/health target level and MP/FP across their six disease classes as described in the paper; preserve parent identities and augmentation choices. Full balancing/provenance generation is not automated by the extracted trainer. All stage tables in a generated experiment resolve from a common feature root:
+MP/FP class order is `ALS, Covid-19, Dysphonie, Laryngitis, Parkinson, Rekurrensparese`. Hierarchical inference maps healthy PD routes directly to HC and feeds the original Mel tensor to MP or FP for pathological routes.
+
+## 3. Audit the supplied split
 
 ```bash
-python scripts/make_configs.py --experiment timewarp --pd-table data/metadata/timewarp_pd.csv --mp-table data/metadata/timewarp_mp.csv --fp-table data/metadata/timewarp_fp.csv --data-root data/features --config-dir outputs/configs/timewarp --device cuda
+gehirnet audit \
+  --train-table data/metadata/train_set.csv \
+  --test-table data/metadata/test_set.csv \
+  --data-root data/features/original
 ```
 
-Use `--experiment resampling` and its three stage tables for Exp 3.1. The generator rejects missing explicit stage tables for augmented experiments, avoiding accidental nonaugmented runs being labeled augmented.
+The local metadata contains 10,807 training and 2,702 test segments. All test feature paths resolve; the 10,807 training feature paths are currently missing. The tables share 1,454 `(Dataset, ID)` keys. Source-specific ID semantics must be resolved before calling the evaluation speaker-independent.
 
-## 5. Train each generated config
+For direct comparison with the paper, retain the supplied historical split. For a new participant-disjoint study, define source-specific participant IDs and split before segmentation or augmentation. The extracted trainer reproduces the historical segment-stratified CV design, not participant-grouped CV.
+
+## 4. Evaluate the supplied hierarchical weights
+
+```bash
+gehirnet evaluate \
+  --table data/metadata/test_set.csv \
+  --data-root data/features/original \
+  --model-dir checkpoints/hierarchical \
+  --output outputs/hierarchical_metrics.json
+```
+
+This is the first check for the supplied model. Compare the resulting seven-class accuracy, weighted F1, MCC, and confusion matrix with the checkpoint-specific record. Paper Table II reports the mean and standard deviation across seeds 40, 41, and 42; evaluating one final checkpoint set is not the three-seed aggregate.
+
+## 5. Recreate features when original training features are unavailable
+
+Construct a curated recording CSV using these required columns:
+
+```text
+Audio_Path, Dataset, ID, Sex, Pathology, Group
+```
+
+Allowed pathology labels are `HC, ALS, Covid-19, Dysphonie, Laryngitis, Parkinson, Rekurrensparese`; sex is `M/F`; group is `MC/MP/FC/FP`. Preserve participant IDs and inclusion/exclusion provenance in additional columns.
+
+```bash
+gehirnet prepare \
+  --table data/metadata/train_recordings.csv \
+  --audio-root data/raw \
+  --output-root data/features/train
+```
+
+This writes `(1,128,98)` Mel arrays and `segments.csv`. It implements VAD, crossfade, normalization, segmentation, and Mel extraction. It does not acquire datasets, reproduce the paper's manual spectral exclusions, or reconstruct the historical split automatically. Generated features therefore constitute a new documented reconstruction unless they are verified against the original feature hashes.
+
+## 6. Generate the three-seed training plan
+
+For the nonaugmented hierarchy:
+
+```bash
+python scripts/make_configs.py \
+  --experiment hierarchical \
+  --table data/features/train/segments.csv \
+  --data-root data/features/train \
+  --config-dir outputs/configs/hierarchical \
+  --device cuda
+```
+
+This creates PD/MP/FP configs for seeds 40, 41, and 42 without launching training. For the baseline, use `--experiment baseline`. Each classifier searches epochs `{10,20,30}`, batch sizes `{32,64}`, and learning rates `{1e-3,1e-4,1e-5}` with five-fold stratified CV, then retrains using the selected settings on the full supplied training table.
+
+## 7. Train
 
 Example for seed 42:
 
@@ -69,38 +93,51 @@ gehirnet train --config outputs/configs/hierarchical/hierarchical_seed42_mp.json
 gehirnet train --config outputs/configs/hierarchical/hierarchical_seed42_fp.json
 ```
 
-Repeat for 40 and 41 and each experiment. Every task searches 18 combinations of epochs/batch size/learning rate, each with five validation folds: 90 fold training runs and one selected final retraining. This is GPU-scale experiment work, not part of model installation or inference. Training defaults to ImageNet initialization.
+Each run writes `model.pth` and `training.json`, including class order, selected parameters, fold MCC values, and fold file paths. Existing outputs are not overwritten.
 
-Outputs are `outputs/runs/EXPERIMENT/seedSEED/TASK/model.pth` and `training.json`. The latter includes selected parameters, fold metrics, class order and fold paths. Existing trained outputs are never overwritten. The extracted RNG sequence differs from historical notebooks; matching the method does not guarantee bit-identical training or identical published metrics.
+## 8. Reproduce augmentation experiments
 
-## 6. Evaluate the same untouched test split
+Only training data is augmented. Prepare separate PD, MP, and FP tables because the paper balances each stage independently. Resampling uses rates from 40000–50000 Hz in 125 Hz steps. Time warping permutes five audio blocks and applies a 32-sample crossfade.
 
-For a matched hierarchy, seed 42:
+The reusable primitives are in `src/gehirnet/augmentation.py`; historical balancing scripts are in `experiments/augmentation/`. Automated end-to-end class balancing and provenance-table generation are not yet implemented. Preserve the parent recording/segment, participant identity, augmentation method, target rate or permutation, and seed.
 
-```bash
-gehirnet evaluate --table data/metadata/test_set.csv --data-root data/features/original --pd outputs/runs/hierarchical/seed42/pd/model.pth --mp outputs/runs/hierarchical/seed42/mp/model.pth --fp outputs/runs/hierarchical/seed42/fp/model.pth --output outputs/metrics/hierarchical_seed42.json
-```
-
-For baseline:
+After preparing stage-specific augmented tables:
 
 ```bash
-gehirnet evaluate --table data/metadata/test_set.csv --data-root data/features/original --baseline outputs/runs/baseline/seed42/baseline/model.pth --output outputs/metrics/baseline_seed42.json
+python scripts/make_configs.py \
+  --experiment timewarp \
+  --pd-table data/metadata/timewarp_pd.csv \
+  --mp-table data/metadata/timewarp_mp.csv \
+  --fp-table data/metadata/timewarp_fp.csv \
+  --data-root data/features \
+  --config-dir outputs/configs/timewarp \
+  --device cuda
 ```
 
-Repeat for each seed/experiment. Never use test scores to choose parameters or arbitrarily pair stage checkpoints. A release bundle can also be evaluated with `--model-dir`.
+Use `--experiment resampling` for Exp 3.1.
 
-## 7. Aggregate and compare Table II
+## 9. Evaluate every seed and summarize
+
+Evaluate matched PD/MP/FP checkpoints from the same experiment and seed on the unchanged test set. Then aggregate three independent metric files:
 
 ```bash
-python scripts/summarize_metrics.py outputs/metrics/hierarchical_seed40.json outputs/metrics/hierarchical_seed41.json outputs/metrics/hierarchical_seed42.json --ddof 1 --output outputs/metrics/hierarchical_summary.json
+python scripts/summarize_metrics.py \
+  outputs/metrics/seed40.json \
+  outputs/metrics/seed41.json \
+  outputs/metrics/seed42.json \
+  --ddof 1 \
+  --output outputs/metrics/summary.json
 ```
 
-The script checks that all runs have the same task, unit, sample count and test path/truth cohort. Inputs must be independent seed runs, not copies of one evaluation. It defaults to sample standard deviation (`ddof=1`); use `--ddof 0` for population standard deviation if that is the convention confirmed for the original paper aggregation. That convention has not been established here, so it must be documented when checking the published standard deviations.
+The script rejects mismatched tasks or test cohorts. Confirm whether the paper used sample (`ddof=1`) or population (`ddof=0`) standard deviation before claiming exact agreement.
 
-Compare seven-class accuracy, weighted F1 and MCC with [Table II in the model card](../MODEL_CARD.md). Checkpoint/seed provenance, manual exclusions, original features and historical selection/RNG details must be aligned before asserting exact agreement. Current [PD binary metrics](VALIDATION.md) are a separate task.
+## Remaining limits for exact paper reproduction
 
-## 8. Reproduce the remaining figures/analyses
+- The original 10,807 training Mel files are absent.
+- Checkpoint seed and exact experiment provenance are not encoded in the supplied filenames; the final bundle records them as `hierarchical-final` with unknown seed.
+- Original manual inclusion/exclusion decisions and source participant identifiers are incomplete as public artifacts.
+- End-to-end augmentation balancing is not automated in the reusable package.
+- CKA source and several analysis details require reconciliation: participant versus segment aggregation, mean versus median bootstrap difference, and MacroTPR disparity implementation.
+- The extracted trainer preserves the method but uses a controlled RNG sequence that may differ from the historical notebooks, so bit-identical training is not guaranteed.
 
-`experiments/ablations/` contains the sex-input and extra-hidden-layer studies; `experiments/analysis/` contains Mel/UMAP/statistical/fairness analyses; `experiments/figures/` retains plots with manually entered results. Install optional analysis dependencies and configure historical paths before running them from the repository root.
-
-The source implementation for CKA, participant aggregation, mean/median bootstrap interpretation and the fairness MacroTPR test needs reconciliation as listed in [reproducibility notes](REPRODUCIBILITY.md). Those analyses are archived, not certified as fully reproduced by the new package.
+The original notebooks and analysis scripts remain under `experiments/` for inspection. Paper-reported metrics are documented in `MODEL_CARD.md` and must remain distinct from newly measured checkpoint results.

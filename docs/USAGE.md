@@ -129,4 +129,12 @@ gehirnet evaluate \
   --output outputs/hierarchical_metrics.json
 ```
 
-The output includes segment-level accuracy, weighted F1, MCC, confusion matrix, and predictions. The model is intended for research use on sustained vowels; see `MODEL_CARD.md` for limitations.
+The output includes segment-level accuracy, weighted F1, MCC, confusion matrix, and predictions.
+
+## Intended use and limitations
+
+GeHirNet is a research model for sustained vowel `/a/` recordings. It has not been validated for clinical diagnosis. The source datasets use binary sex categories, and performance outside those categories has not been evaluated.
+
+The evaluation data has substantial class imbalance and small rare-disease cohorts. Recording conditions, language, and disease are partly associated with dataset source. The local train and test tables share 1,454 `(Dataset, ID)` keys, so speaker-independent performance has not been established. The reported results do not establish generalization to unrestricted speech, unseen speakers, new recording devices, or new clinical populations.
+
+Code and supplied weights use Apache-2.0. Source audio, metadata, and feature redistribution terms remain separate.

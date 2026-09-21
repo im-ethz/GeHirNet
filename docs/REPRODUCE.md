@@ -131,6 +131,25 @@ python scripts/summarize_metrics.py \
 
 The script rejects mismatched tasks or test cohorts. Confirm whether the paper used sample (`ddof=1`) or population (`ddof=0`) standard deviation before claiming exact agreement.
 
+## Reported and checkpoint results
+
+Paper Table II reports mean ± standard deviation across seeds 40, 41, and 42 on the original segment test split:
+
+| Model | Accuracy | Weighted F1 | MCC |
+| --- | ---: | ---: | ---: |
+| Baseline | 0.9598 ± 0.0063 | 0.9590 ± 0.0068 | 0.9190 ± 0.0131 |
+| GeHirNet | 0.9647 ± 0.0054 | 0.9644 ± 0.0058 | 0.9294 ± 0.0114 |
+| + Resampling | 0.9646 ± 0.0023 | 0.9641 ± 0.0024 | 0.9289 ± 0.0047 |
+| + Time warping | 0.9724 ± 0.0037 | 0.9723 ± 0.0038 | 0.9449 ± 0.0074 |
+
+The supplied final checkpoint set was evaluated locally on all 2,702 supplied test segments:
+
+| Checkpoint set | Accuracy | Weighted F1 | MCC |
+| --- | ---: | ---: | ---: |
+| `checkpoints/hierarchical/` | 0.9763 | 0.9761 | 0.9525 |
+
+This checkpoint result is from one final model set and is separate from the paper's three-seed aggregate.
+
 ## Remaining limits for exact paper reproduction
 
 - The original 10,807 training Mel files are absent.
@@ -140,4 +159,4 @@ The script rejects mismatched tasks or test cohorts. Confirm whether the paper u
 - CKA source and several analysis details require reconciliation: participant versus segment aggregation, mean versus median bootstrap difference, and MacroTPR disparity implementation.
 - The extracted trainer preserves the method but uses a controlled RNG sequence that may differ from the historical notebooks, so bit-identical training is not guaranteed.
 
-The original notebooks and analysis scripts remain under `experiments/` for inspection. Paper-reported metrics are documented in `MODEL_CARD.md` and must remain distinct from newly measured checkpoint results.
+The original notebooks and analysis scripts remain under `experiments/` for inspection. Keep paper-reported metrics distinct from newly measured checkpoint results.

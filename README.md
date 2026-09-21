@@ -1,14 +1,17 @@
 # GeHirNet
 
-Official research implementation of **GeHirNet: A Sex-Aware Hierarchical Model for Fair and Accurate Voice Pathology Classification**, by Fan Wu, Kaicheng Zhao, Elgar Fleisch, and Filipe Barata.
+GeHirNet turns a sustained `/a/` vowel recording into a segment-level prediction for healthy voice or one of six voice-related conditions: ALS, COVID-19, dysphonia, laryngitis, Parkinson's disease, and vocal cord paresis.
 
-GeHirNet classifies sustained vowel `/a/` recordings with three independently trained ResNet-50 models:
+This repository is useful if you want to:
 
-1. `PD` predicts male/female × healthy/pathology: `MC, MP, FC, FP`.
-2. Healthy predictions become `HC`.
-3. `MP` or `FP` classifies pathological samples into six diseases.
+- run the pretrained model on a WAV recording or prepared Mel spectrogram;
+- evaluate the released weights on a labeled dataset;
+- retrain or adapt the model for voice pathology research;
+- reproduce the paper's preprocessing, hierarchical training, and augmentation experiments.
 
-The complete hierarchical checkpoint is available in `checkpoints/hierarchical/`. It contains three weight files and a validated manifest.
+Ready-to-use weights are included in `checkpoints/hierarchical/`, so inference does not require training first. The model uses a sex-aware hierarchy of three ResNet-50 classifiers to account for physiological voice differences while producing the final health or pathology label.
+
+GeHirNet is intended for research on sustained vowels and is not a clinical diagnostic tool.
 
 ## Install
 
@@ -56,7 +59,6 @@ See [docs/REPRODUCE.md](docs/REPRODUCE.md) for data preparation, training, evalu
 | `experiments/` | Original notebooks, preprocessing, augmentation, ablation, and analysis materials |
 | `docs/USAGE.md` | How to call the pretrained model |
 | `docs/REPRODUCE.md` | How to reproduce the experimental workflow |
-| `MODEL_CARD.md` | Intended use, reported results, and limitations |
 
 ## Validation
 
@@ -66,6 +68,10 @@ python -m unittest discover -s tests -v
 
 The implementation uses the original class orders and hard routing. Model manifests verify preprocessing metadata, label order, and SHA-256 checksums before loading.
 
-## License and citation
+## License
 
-Code and the supplied model artifact use Apache-2.0. See [LICENSE.txt](LICENSE.txt), [NOTICES.txt](NOTICES.txt), and [CITATION.cff](CITATION.cff).
+Code and the supplied model artifact use Apache-2.0. See [LICENSE.txt](LICENSE.txt) and [NOTICES.txt](NOTICES.txt).
+
+## Citation
+
+If you use this repository, please cite **GeHirNet: A Sex-Aware Hierarchical Model for Fair and Accurate Voice Pathology Classification**, by Fan Wu, Kaicheng Zhao, Elgar Fleisch, and Filipe Barata.

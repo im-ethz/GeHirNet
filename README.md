@@ -50,15 +50,16 @@ See [docs/REPRODUCE.md](docs/REPRODUCE.md) for data preparation, training, evalu
 
 ## Repository layout
 
-| Path | Purpose |
-| --- | --- |
-| `src/gehirnet/` | Reusable preprocessing, training, evaluation, inference, and model-bundle code |
-| `checkpoints/hierarchical/` | Complete PD/MP/FP model artifact |
-| `configs/`, `scripts/` | Training configurations and experiment helpers |
-| `data/templates/` | Metadata schema examples |
-| `experiments/` | Original notebooks, preprocessing, augmentation, ablation, and analysis materials |
-| `docs/USAGE.md` | How to call the pretrained model |
-| `docs/REPRODUCE.md` | How to reproduce the experimental workflow |
+
+| Path                        | Purpose                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `src/gehirnet/`             | Reusable preprocessing, training, evaluation, inference, and model-bundle code    |
+| `checkpoints/hierarchical/` | Complete PD/MP/FP model artifact                                                  |
+| `configs/`, `scripts/`      | Training configurations and experiment helpers                                    |
+| `data/templates/`           | Metadata schema examples                                                          |
+| `experiments/`              | Original notebooks, preprocessing, augmentation, ablation, and analysis materials |
+| `docs/USAGE.md`             | How to call the pretrained model                                                  |
+| `docs/REPRODUCE.md`         | How to reproduce the experimental workflow                                        |
 
 ## Validation
 
@@ -74,4 +75,6 @@ Code and the supplied model artifact use Apache-2.0. See [LICENSE.txt](LICENSE.t
 
 ## Citation
 
-If you use this repository, please cite **GeHirNet: A Sex-Aware Hierarchical Model for Fair and Accurate Voice Pathology Classification**, by Fan Wu, Kaicheng Zhao, Elgar Fleisch, and Filipe Barata.
+If you use this repository, please cite:
+
+> F. Wu, K. Zhao, E. Fleisch and F. Barata, "GeHirNet: A Sex-Aware Hierarchical Model for Fair and Accurate Voice Pathology Classification," 2026 IEEE 14th International Conference on Healthcare Informatics (ICHI), Minneapolis, MN, USA, 2026, pp. 262–270, doi: [10.1109/ICHI69079.2026.00043](https://doi.org/10.1109/ICHI69079.2026.00043).
